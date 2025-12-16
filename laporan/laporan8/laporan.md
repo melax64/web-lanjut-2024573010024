@@ -1,150 +1,451 @@
-# Laporan Modul 7: Eloquent Relationship & Pagination
-**Mata Kuliah:** Workshop Web Lanjut   
+# Laporan Modul 8: Authentication & Authorization
+
+**Mata Kuliah:** Workshop Web Lanjut  
 **Nama:** Maila Aziza  
 **NIM:** 2024573010024
 **Kelas:** TI-2C
 
 ---
 
-## Abstrak 
-Eloquent relationship menyediakan cara yang mudah untuk mendefinisikan hubungan antara tabel database dan model di Laravel.
-Pagination adalah teknik untuk mengatur konten di website dengan membaginya menjadi beberapa halaman berurutan, biasanya ditandai dengan nomor seperti 1, 2, 3, atau tombol “Next” dan “Previous”. Biasanya, nomor ini muncul di atas atau bawah halaman situs. Tujuannya? Agar pengunjung mudah bernavigasi dan situs tidak menampilkan semua data di satu tempat.
+## Abstrak
+
+Modul ini mengeksplorasi implementasi mekanisme keamanan berupa autentikasi dan otorisasi dalam kerangka kerja Laravel. Topik pembelajaran meliputi pemanfaatan Laravel Breeze sebagai starter kit untuk membangun fitur user registration, login mechanism, profile management, dan pembatasan resource menggunakan sistem middleware.
+
+Dalam konteks praktik, pemahaman akan mencakup: teknik membangun sistem login yang robust dan aman dari berbagai jenis serangan, strategi proteksi routing dengan validasi akses, implementasi sistem role-based (admin, manager, user) untuk pembedaan hak istimewa, dan manajemen kontrol akses yang terpisah untuk setiap level pengguna. Secara keseluruhan, pembelajaran ini memberikan fondasi komprehensif untuk mengimplementasikan security framework berbasis identifikasi dan otorisasi pada aplikasi Laravel modern.
 
 ---
 
 ## 1. Dasar Teori
 
-Eloquent relationships merupakan method yang didefinisikan di dalam Model dan digunakan untuk menghubungkan antar table yang saling berhubungan. Dengan menggunakan fitur eloquent relationships maka dapat lebih mudah dalam melakukan maintenance.
-Pagination merupakan adalah sebuah fitur web yang digunakan untuk membatasi tampilan data agar tidak terlalu panjang dan  lebih rapi. Penggunaan pagination banyak dipergunakan digunakan untuk menampilkan data dalam jumlah banyak, sehingga dapat dipisah/dipilih berapa data yang akan ditampilkan terlebih dahulu sesuai dengan urutan akan kriteria pencarian tertentu.
+### Konsep Autentikasi
+
+Autentikasi merupakan mekanisme penyesuaian identitas untuk memverifikasi apakah individu yang mengakses adalah benar-benar orang yang mengklaim dirinya. Proses ini dimulai ketika pengguna mencoba masuk ke sistem dengan menyediakan kredensial (username dan password). Sistem kemudian membandingkan data yang diberikan dengan informasi yang tersimpan di database. Jika keduanya cocok, pengguna diizinkan mengakses sistem; jika tidak, akses ditolak.
+
+### Konsep Otorisasi
+
+Otorisasi adalah tahap berikutnya setelah autentikasi berhasil, di mana sistem menentukan tindakan apa yang boleh dilakukan oleh pengguna yang telah terverifikasi. Mekanisme ini mengontrol akses ke fitur dan resource berdasarkan peran atau permission yang dimiliki pengguna. Sebagai ilustrasi, pengguna biasa tidak memiliki izin mengakses panel administrator atau mengubah setting sistem, meskipun mereka telah berhasil login. Otorisasi menciptakan lapisan keamanan tambahan untuk melindungi data dan fungsi-fungsi kritis aplikasi.
 
 ---
 
 ## 2. Langkah-Langkah Praktikum
 
-2.1 Praktikum 1 – Eloquent ORM Relationships: One-to-One, One-to-Many, Many-to-Many
+Berikut ini adalah tahapan praktik yang telah dilaksanakan, dilengkapi dengan potongan kode dan hasil tangkapan layar.
 
-1. Buat dan buka proyek laravel
-```
-laravel new complex-relationships
-cd complex-relationships
-code .
-```
-- Konfigurasi MySQL:
-```
+### 2.1 Praktikum 1 – Sistem Autentikasi pada Laravel 12
+
+#### Inisialisasi Proyek Baru
+
+Buat proyek Laravel baru dengan nama `auth-lab`
+
+#### Konfigurasi Koneksi Database
+
+Pengaturan database dilakukan dalam file `.env` dengan konfigurasi berikut:
+
+```env
 DB_CONNECTION=mysql
 DB_HOST=127.0.0.1
 DB_PORT=3306
-DB_DATABASE=eloquentrelation_db
+DB_DATABASE=authlab_db
 DB_USERNAME=<username database anda>
 DB_PASSWORD=<password database anda jika ada>
 ```
-- `php artisan config:clear`
-2. Buat migrasi untuk skema database
+
+Setelah konfigurasi selesai, jalankan migrasi awal untuk membuat struktur database:
+
+```bash
+php artisan migrate
 ```
-php artisan make:migration create_profiles_table
-php artisan make:migration create_posts_table
-php artisan make:migration create_tags_table
-php artisan make:migration create_post_tag_table
+
+#### Pemasangan Laravel Breeze
+
+Download package Laravel Breeze sebagai starter kit autentikasi:
+
+```bash
+composer require laravel/breeze --dev
 ```
-- `php artisan migrate`
-3. Mendefinisikan model eloquent
+
+Lalu lakukan instalasi ke dalam proyek:
+
+```bash
+php artisan breeze:install
 ```
-php artisan make:model Profile
-php artisan make:model Post
-php artisan make:model Tag
+
+Pasang dependency frontend yang diperlukan:
+
+```bash
+npm install
+npm run dev
 ```
-- `php artisan make:seeder DatabaseSeeder`
-- `php artisan db:seed`
-5. Membuat controller
+
+#### Pembuatan Route Profil Terproteksi
+
+Buka file `routes/web.php` untuk mendefinisikan rute-rute dengan proteksi middleware:
+
+    ```bash
+    <?php
+
+      use App\Http\Controllers\ProfileController;
+      use Illuminate\Support\Facades\Route;
+      use Illuminate\Support\Facades\Auth;
+
+      Route::get('/', function () {
+          return view('welcome');
+      });
+
+      Route::get('/dashboard', function () {
+          return view('dashboard');
+      })->middleware(['auth', 'verified'])->name('dashboard');
+
+      Route::middleware('auth')->group(function () {
+          Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
+          Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
+          Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
+
+          // Tambahkan rute myprofile baru
+          Route::get('/myprofile', function () {
+              return Auth::user();
+          })->name('myprofile');
+      });
+
+      require __DIR__.'/auth.php';
+    ```
+
+#### Menjalankan Aplikasi
+
+Launch development server Laravel:
+
+```bash
+php artisan serve
 ```
-php artisan make:controller UserController
-php artisan make:controller PostController
+
+#### Verifikasi Hasil
+
+Setelah user berhasil melakukan login, halaman dashboard akan menampilkan informasi seperti pada tangkapan layar berikut:
+
+![auth-lab](gambar/auth-lab-1.png)
+
+Apabila pengguna belum melakukan proses login, sistem akan menghalangi akses dan mengalihkan secara otomatis ke halaman autentikasi.
+
+### 2.2 Praktikum 2 – Implementasi Sistem Kontrol Akses Berbasis Peran
+
+#### Inisialisasi Proyek Baru
+
+Buat proyek Laravel baru dengan nama `auth-role`
+
+#### Pengaturan Database
+
+Konfigurasi koneksi database dalam file `.env`:
+
+```env
+DB_CONNECTION=mysql
+DB_HOST=127.0.0.1
+DB_PORT=3306
+DB_DATABASE=authrole_db
+DB_USERNAME=<username database anda>
+DB_PASSWORD=<password database anda jika ada>
 ```
-6. Mendefinisikan web routes
+
+Jalankan migrasi untuk membuat struktur database:
+
+```bash
+php artisan migrate
 ```
+
+#### Pemasangan Laravel Breeze
+
+Unduh dan pasang Laravel Breeze:
+
+```bash
+composer require laravel/breeze --dev
+php artisan breeze:install
+npm install
+npm run dev
+```
+
+#### Penambahan Kolom Role pada Tabel Users
+
+Untuk memperluas struktur tabel users dengan menambahkan kolom role, jalankan command pembuatan migration:
+
+```bash
+php artisan make:migration add_role_to_users_table --table=users
+```
+
+Ubah isi file migration yang baru dibuat:
+
+```php
+public function up(): void
+{
+    Schema::table('users', function (Blueprint $table) {
+        $table->string('role')->default('user');
+    });
+}
+
+public function down(): void
+{
+    Schema::table('users', function (Blueprint $table) {
+        $table->dropColumn('role');
+    });
+}
+```
+
+Setelah selesai, jalankan migration:
+
+```bash
+php artisan migrate
+```
+
+#### Penyisipan Data User dengan Role Berbeda
+
+Untuk menambahkan akun user dengan role yang berbeda, edit file `database/seeders/DatabaseSeeder.php`:
+
+```php
+User::create([
+    'name' => 'Admin User',
+    'email' => 'admin@ilmudata.id',
+    'password' => Hash::make('password123'),
+    'role' => 'admin',
+]);
+
+User::create([
+    'name' => 'Manager User',
+    'email' => 'manager@ilmudata.id',
+    'password' => Hash::make('password123'),
+    'role' => 'manager',
+]);
+
+User::create([
+    'name' => 'General User',
+    'email' => 'user@ilmudata.id',
+    'password' => Hash::make('password123'),
+    'role' => 'user',
+]);
+```
+
+Jalankan seeder untuk memasukkan data ke database:
+
+```bash
+php artisan db:seed
+```
+
+#### Pembuatan Middleware untuk Pengecekan Role
+
+Generate middleware baru:
+
+```bash
+php artisan make:middleware RoleMiddleware
+```
+
+Implementasikan logika pengecekan role di dalam method handle pada file `app/Http/Middleware/RoleMiddleware.php`:
+
+```php
+if ($request->user() && $request->user()->role === $role) {
+    return $next($request);
+}
+
+abort(403, 'Unauthorized');
+```
+
+Daftarkan middleware pada file `bootstrap/app.php` di dalam method withMiddleware():
+
+```php
+$middleware->alias([
+    'role' => RoleMiddleware::class,
+]);
+```
+
+#### Pembuatan View untuk Setiap Role
+
+Buat beberapa file view di direktori `resources/views` untuk menampilkan dashboard yang berbeda berdasarkan role pengguna.
+
+**File admin.blade.php:**
+
+```blade
+<x-app-layout>
+    <x-slot name="header">
+        <h2 class="font-semibold text-xl text-gray-800 dark:text-gray-200 leading-tight">
+            {{ __('Admin Dashboard') }}
+        </h2>
+    </x-slot>
+
+    <div class="py-12">
+        <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
+            <div class="bg-white dark:bg-gray-800 overflow-hidden shadow-sm sm:rounded-lg">
+                <div class="p-6 text-gray-900 dark:text-gray-100">
+                    {{ __("Welcome, Admin! You have full access.") }}
+                </div>
+            </div>
+        </div>
+    </div>
+</x-app-layout>
+```
+
+**File manager.blade.php:**
+
+```blade
+<x-app-layout>
+    <x-slot name="header">
+        <h2 class="font-semibold text-xl text-gray-800 dark:text-gray-200 leading-tight">
+            {{ __('Manager Dashboard') }}
+        </h2>
+    </x-slot>
+
+    <div class="py-12">
+        <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
+            <div class="bg-white dark:bg-gray-800 overflow-hidden shadow-sm sm:rounded-lg">
+                <div class="p-6 text-gray-900 dark:text-gray-100">
+                    {{ __("Welcome, Manager! You can manage and monitor resources.") }}
+                </div>
+            </div>
+        </div>
+    </div>
+</x-app-layout>
+```
+
+**File user.blade.php:**
+
+```blade
+<x-app-layout>
+    <x-slot name="header">
+        <h2 class="font-semibold text-xl text-gray-800 dark:text-gray-200 leading-tight">
+            {{ __('User Dashboard') }}
+        </h2>
+    </x-slot>
+
+    <div class="py-12">
+        <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
+            <div class="bg-white dark:bg-gray-800 overflow-hidden shadow-sm sm:rounded-lg">
+                <div class="p-6 text-gray-900 dark:text-gray-100">
+                    {{ __("Welcome, User! You have limited access.") }}
+                </div>
+            </div>
+        </div>
+    </div>
+</x-app-layout>
+```
+
+**File all.blade.php:**
+
+```blade
+<x-app-layout>
+    <x-slot name="header">
+        <h2 class="font-semibold text-xl text-gray-800 dark:text-gray-200 leading-tight">
+            {{ __('General Dashboard') }}
+        </h2>
+    </x-slot>
+
+    <div class="py-12">
+        <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
+            <div class="bg-white dark:bg-gray-800 overflow-hidden shadow-sm sm:rounded-lg">
+                <div class="p-6 text-gray-900 dark:text-gray-100">
+                    {{ __("Welcome! This view is accessible by all authenticated roles.") }}
+                </div>
+            </div>
+        </div>
+    </div>
+</x-app-layout>
+```
+
+#### Definisi Routing Berbasis Role
+
+Buka file `routes/web.php` dan tambahkan rute-rute untuk setiap role:
+
+```php
 <?php
 
 use Illuminate\Support\Facades\Route;
-use App\Http\Controllers\UserController;
-use App\Http\Controllers\PostController;
 
-// Routes untuk User
-Route::get('/users', [UserController::class, 'index'])->name('users.index');
-Route::get('/users/{user}', [UserController::class, 'show'])->name('users.show');
+Route::middleware('auth')->group(function () {
+    // Rute yang dapat diakses oleh semua pengguna terautentikasi
+    Route::get('/all', function () {
+        return view('all');
+    });
 
-// Routes untuk Post
-Route::get('/posts', [PostController::class, 'index'])->name('posts.index');
-Route::get('/posts/{post}', [PostController::class, 'show'])->name('posts.show');
+    // Rute khusus admin dengan middleware role
+    Route::get('/admin', function () {
+        return view('admin');
+    })->middleware('role:admin');
+
+    // Rute khusus manager dengan middleware role
+    Route::get('/manager', function () {
+        return view('manager');
+    })->middleware('role:manager');
+
+    // Rute khusus user dengan middleware role
+    Route::get('/user', function () {
+        return view('user');
+    })->middleware('role:user');
+});
 ```
-7. Membuat views menggunakan bootstrap
-8. Testing aplikasi
-`php artisan serve`
-Kunjungi `http://127.0.0.1:8000/users` atau `http://127.0.0.1:8000/posts`
 
-Hasil:
-![blade-view](gambar/image.png)
-![blade-view](gambar/image2.png)
+**Penjelasan Struktur Routing:**
 
+- `/all` - Dapat diakses oleh semua pengguna yang sudah melakukan autentikasi
+- `/admin` - Hanya dapat diakses oleh pengguna dengan role admin
+- `/manager` - Hanya dapat diakses oleh pengguna dengan role manager
+- `/user` - Hanya dapat diakses oleh pengguna dengan role user
 
-2.2 Praktikum 2 – Paginasi dengan Eloquent ORM
+**Middleware yang Digunakan:**
 
-1. Membuat proyek laravel baru
+- `auth` - Memastikan pengguna telah berhasil login
+- `role:admin` - Memastikan pengguna memiliki peran admin
+- `role:manager` - Memastikan pengguna memiliki peran manager
+- `role:user` - Memastikan pengguna memiliki peran user
+
+#### Menjalankan Aplikasi dan Melakukan Pengujian
+
+Jalankan development server:
+
+```bash
+php artisan serve
 ```
-laravel new productpagination
-cd productpagination
-code .
-```
-- Install dependency MySQL:
-`composer require doctrine/dbal`
-- Konfigurasi MySQL
-```
-DB_CONNECTION=mysql
-DB_HOST=127.0.0.1
-DB_PORT=3306
-DB_DATABASE=pagination_db
-DB_USERNAME=<username database anda>
-DB_PASSWORD=<password database anda jika ada>
-```
-- Bersihkan config cache
-`php artisan config:clear`
-2. Membuat model dan migrasi product
-`php artisan make:model Product -m`
-3. `php artisan migrate`
-4. `php artisan make:seeder ProductSeeder`
-5. `php artisan make:factory ProductFactory --model=Product`
-6. `php artisan db:seed`
-7. Buat Controller untuk paginasi
-`php artisan make:controller ProductController`
-8. Mendefinisikan route
-```
-use App\Http\Controllers\ProductController;
 
-Route::get('/products', [ProductController::class, 'index'])->name('products.index');
-```
-9. Membuat View untuk Daftar Produk dengan Paginasi
-10. Menjalankan dan menguji
-`php artisan serve`
-http://localhost:8000/products
+Buka browser dan kunjungi `http://localhost:8000`, kemudian login menggunakan salah satu akun yang telah dibuat dalam seeding. Setelah berhasil login, coba akses rute-rute berikut untuk menguji sistem kontrol akses:
 
-Hasil:
-![blade-view](gambar/image.png)
+- `/all` - Halaman umum yang dapat diakses semua role
+- `/admin` - Halaman khusus admin
+- `/manager` - Halaman khusus manager
+- `/user` - Halaman khusus user
 
-## 3. Hasil dan Pembahasan
-modul ini juga mengajarkan implementasi Pagination yang merupakan teknik penting untuk mengelola penampilan data dalam jumlah besar. Pagination tidak hanya meningkatkan pengalaman pengguna dengan menghindari penampilan data yang berlebihan dalam satu halaman, tetapi juga meningkatkan performa aplikasi dengan memuat hanya sebagian data yang diperlukan. Dalam praktikum pagination, developer belajar membuat sistem pagination lengkap mulai dari model Product, factory untuk data dummy, controller dengan method paginate(), hingga view yang menampilkan navigasi halaman secara otomatis menggunakan Tailwind CSS. Kedua konsep ini—Eloquent Relationship dan Pagination—merupakan keterampilan esensial yang sangat berguna dalam pengembangan aplikasi Laravel yang skalabel dan efisien.
+#### Hasil Pengujian
+
+Berikut adalah beberapa skenario pengujian yang dilakukan:
+
+**Skenario 1: Admin mengakses halaman admin**
+
+![role-lab](gambar/role-lab-1.png)
+
+**Skenario 2: Admin mengakses halaman all (dapat diakses)**
+
+![role-lab](gambar/role-lab-all.png)
+
+**Skenario 3: Admin mencoba mengakses halaman manager (ditolak)**
+
+![role-lab](gambar/role-lab-rejected.png)
 
 ---
 
-## 4. Kesimpulan
+## 3. Kesimpulan
 
-Dari praktikum ini bisa disimpulkan Modul ini memberikan pemahaman komprehensif tentang dua konsep fundamental dalam pengembangan aplikasi Laravel, yaitu Eloquent Relationship dan Pagination. Eloquent Relationship memungkinkan developer untuk mendefinisikan hubungan antar tabel database dengan cara yang intuitif dan mudah dipahami, tanpa harus menulis query SQL yang kompleks. Modul ini mencakup tiga jenis relationship utama: One-to-One (seperti hubungan user dan profile), One-to-Many (seperti hubungan category dan post), serta Many-to-Many (seperti hubungan students dan courses) yang memerlukan tabel pivot. Melalui praktikum yang disajikan, developer dapat mempelajari cara implementasi masing-masing relationship mulai dari pembuatan migrasi, model, seeder, controller, hingga view dengan antarmuka yang user-friendly menggunakan Bootstrap.
+Melalui pembelajaran modul ini, mekanisme autentikasi dan otorisasi dalam ekosistem Laravel telah dieksplorasi dan diterapkan secara praktis. Alur pembelajaran mencakup tahapan login/registrasi pengguna, pengelolaan profil, hingga implementasi kontrol akses yang berbasis peran dan sistem middleware.
+
+Laravel Breeze memberikan kemudahan signifikan dalam membangun fondasi autentikasi yang sudah siap pakai, mengurangi kompleksitas setup awal. Sebaliknya, implementasi middleware khusus dan sistem role-based memungkinkan developer untuk membangun aturan akses yang lebih sophisticated dan sesuai dengan kebutuhan bisnis.
+
+Hasil praktikum membuktikan bahwa Laravel menyediakan tools dan infrastruktur yang mature untuk membangun sistem keamanan yang solid. Dengan arsitektur yang well-structured, developer dapat dengan percaya diri mengimplementasikan security layer yang melindungi data sensitif dan mengontrol alur akses di dalam aplikasi.
+
+---
+
+## 4. Referensi
+
+Cantumkan sumber yang Anda baca (buku, artikel, dokumentasi) — minimal 2 sumber. Gunakan format sederhana (judul — URL).
+
+Laravel Blade Templating Engine — https://hackmd.io/@mohdrzu/r1AIUzWpll
+Panduan Lengkap Authorization di Laravel 12 — https://qadrlabs.com/post/laravel-gate-panduan-lengkap-authorization-di-laravel-12
+Membuat Autentikasi (Multi Role) Web Laravel Anti Ribet dengan Laravel Breeze — https://wahyuivan.medium.com/membuat-autentikasi-multi-role-web-laravel-anti-ribet-dengan-laravel-breeze-269ad99f1197
 
 ---
 
-## 5. Referensi
-
-Laravel Eloquent Relationship & Pagination — https://hackmd.io/@mohdrzu/r1RPvWaCxx
-Tutorial Laravel Eloquent Relationships#1: Apa itu Eloquent Relationships? — https://santrikoding.com/tutorial-laravel-eloquent-relationships-1-apa-itu-eloquent-relationships
-Laravel Pagination (Belajar Laravel #11) — https://informatika.ciputra.ac.id/2019/11/laravel-crud-pagination/
 
 
----
+
+
+        
